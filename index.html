@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alles Gute!</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #FAF5FF;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    cursor: pointer;
+    user-select: none;
+    font-family: Impact, 'Arial Narrow', Arial, sans-serif;
+  }
+
+  #stage {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.4s ease;
+  }
+
+  #word {
+    font-size: clamp(72px, 20vw, 28vw);
+    line-height: 0.88;
+    text-align: center;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 2;
+    opacity: 0;
+    transform: scale(0.8) translateY(40px);
+    transition: opacity 0.4s cubic-bezier(0.22,1,0.36,1), transform 0.5s cubic-bezier(0.22,1,0.36,1);
+    padding: 0 3vw;
+    word-break: break-word;
+    max-width: 96vw;
+  }
+
+  #word.visible {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  #word.exit {
+    opacity: 0;
+    transform: scale(1.1) translateY(-30px);
+    transition: opacity 0.2s ease-in, transform 0.25s ease-in;
+  }
+
+  #progress {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: rgba(0, 187, 255, 0.8);
+    transition: width 0.3s ease;
+    z-index: 10;
+  }
+
+  #hint {
+    position: fixed;
+    bottom: 20px;
+    width: 100%;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    color: rgba(0,0,0,0.25);
+    z-index: 10;
+    text-transform: uppercase;
+    transition: opacity 1s;
+  }
+
+  #counter {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: rgba(0,0,0,0.2);
+    z-index: 10;
+    letter-spacing: 0.1em;
+  }
+
+  #confetti-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    overflow: hidden;
+  }
+
+  #end-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1.4rem;
+    text-align: center;
+    padding: 2rem 1.5rem 3rem;
+    width: 100%;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  #end-screen.visible { display: flex; }
+
+  .end-msg {
+    font-family: Impact, 'Arial Narrow', Arial, sans-serif;
+    font-size: clamp(32px, 10vw, 90px);
+    line-height: 1;
+    color: #C026D3;
+    letter-spacing: 0.08em;
+    animation: fadeUp 0.6s 0.2s both;
+    margin-top: 1rem;
+  }
+
+  #chef-photo {
+    width: min(80vw, 240px);
+    object-fit: cover;
+    animation: fadeUp 0.6s 0.9s both;
+  }
+
+  .restart-btn {
+    margin-top: 0.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #0a0a0a;
+    background: #f0ede6;
+    border: none;
+    padding: 14px 36px;
+    cursor: pointer;
+    border-radius: 2px;
+    animation: fadeUp 0.6s 1.3s both;
+  }
+
+  .restart-btn:hover { background: #fff; }
+
+  .end-ps {
+    font-family: Arial, sans-serif;
+    font-size: clamp(13px, 3.5vw, 16px);
+    color: rgba(160, 0, 178, 0.55);
+    max-width: min(90vw, 480px);
+    line-height: 1.7;
+    animation: fadeUp 0.6s 1.5s both;
+    padding: 0 0.5rem;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fall {
+    0%   { transform: translateY(0)     translateX(0)                    rotate(0deg);   opacity: 1; }
+    50%  { transform: translateY(50vh)  translateX(calc(var(--drift)/2)) rotate(420deg); opacity: 1; }
+    85%  { opacity: 1; }
+    100% { transform: translateY(112vh) translateX(var(--drift))         rotate(900deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="word"></div>
+</div>
+
+<div id="end-screen">
+  <div class="end-msg">LOOVVEEE<br>YYYOOOUUUU<br>CHEEFFFYYYYYY</div>
+  <img id="chef-photo" src="gebu.png" alt="">
+  <div class="end-ps">p.s. ich hoffe dein geschenk kommt bald an weil ich glaube dass es dir gefallen wird ihhihihihihihhihi</div>
+</div>
+
+<div id="progress"></div>
+<div id="hint">TAB ODER CLICK MEIN BOOMER</div>
+<div id="counter"></div>
+<div id="confetti-layer"></div>
+
+<script>
+const slides = [
+  { text: "ALLES",          color: "#C026D3", bg: "#FAF5FF" },
+  { text: "GUTE",           color: "#D97706", bg: "#FFFBEB" },
+  { text: "ZUM",            color: "#0284C7", bg: "#F0F9FF" },
+  { text: "GEBUUU",         color: "#DC2626", bg: "#FFF1F2" },
+  { text: "CHEF",           color: "#059669", bg: "#ECFDF5" },
+  { text: "DU",             color: "#7C3AED", bg: "#F5F3FF" },
+  { text: "BIST",           color: "#D97706", bg: "#FFFBEB" },
+  { text: "TOLL",           color: "#DB2777", bg: "#FDF2F8" },
+  { text: "UND<br>ALT",     color: "#7C3AED", bg: "#EEF2FF" },
+  { text: "UND<br>STINKST", color: "#DC2626", bg: "#FFF1F2" },
+  { text: "ICH",            color: "#0284C7", bg: "#F0F9FF" },
+  { text: "LIEBE",          color: "#DB2777", bg: "#FDF2F8" },
+  { text: "DICH",           color: "#DC2626", bg: "#FFF1F2" },
+];
+
+const COLORS = [
+  '#FF0080','#FF3D00','#FFD600','#00E676','#00B0FF',
+  '#D500F9','#FF6D00','#AEEA00','#00E5FF','#FF4081',
+  '#FFFF00','#69FF47','#FF1744','#FF9100','#E040FB',
+];
+
+let current = 0;
+let animating = false;
+let started = false;
+
+const wordEl     = document.getElementById('word');
+const stageEl    = document.getElementById('stage');
+const endScreen  = document.getElementById('end-screen');
+const progressEl = document.getElementById('progress');
+const hintEl     = document.getElementById('hint');
+const counterEl  = document.getElementById('counter');
+const confettiLayer = document.getElementById('confetti-layer');
+
+function rainConfetti(slideColor, count) {
+  confettiLayer.innerHTML = '';
+  const vw = window.innerWidth;
+
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    const w  = Math.random() * 6 + 3;
+    const h  = Math.random() > 0.4 ? w : w * 2.4;
+    const color = Math.random() < 0.25
+      ? slideColor
+      : COLORS[Math.floor(Math.random() * COLORS.length)];
+
+    const startX   = Math.random() * (vw + 120) - 60;
+    const duration = Math.random() * 3 + 3;
+    const delay    = Math.random() * 2.5;
+    const drift    = (Math.random() - 0.5) * 140;
+
+    el.style.cssText = `
+      position:absolute;
+      top:-24px;
+      left:${startX}px;
+      width:${w}px;
+      height:${h}px;
+      background:${color};
+      border-radius:2px;
+      animation:fall ${duration}s ${delay}s linear forwards;
+    `;
+    el.style.setProperty('--drift', `${drift}px`);
+    confettiLayer.appendChild(el);
+    setTimeout(() => el.remove(), (duration + delay) * 1000 + 200);
+  }
+}
+
+function showSlide(idx) {
+  const s = slides[idx];
+  stageEl.style.background = s.bg;
+  wordEl.style.color = s.color;
+  wordEl.innerHTML = s.text;
+  counterEl.textContent = (idx + 1) + ' / ' + slides.length;
+  progressEl.style.width = ((idx + 1) / slides.length * 100) + '%';
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      wordEl.classList.add('visible');
+      rainConfetti(s.color, 350);
+    });
+  });
+}
+
+function advance() {
+  if (animating) return;
+
+  if (!started) {
+    started = true;
+    hintEl.style.opacity = '0';
+    showSlide(0);
+    return;
+  }
+
+  if (current >= slides.length - 1) {
+    showEnd();
+    return;
+  }
+
+  animating = true;
+  wordEl.classList.remove('visible');
+  wordEl.classList.add('exit');
+
+  setTimeout(() => {
+    wordEl.classList.remove('exit');
+    current++;
+    showSlide(current);
+    animating = false;
+  }, 250);
+}
+
+function showEnd() {
+  rainConfetti('#FFFF00', 500);
+  stageEl.style.display = 'none';
+  endScreen.classList.add('visible');
+  document.body.style.background = '#FAF5FF';
+  progressEl.style.width = '100%';
+  hintEl.style.display = 'none';
+  counterEl.style.display = 'none';
+}
+
+function restart() {
+  current = 0;
+  animating = false;
+  started = false;
+  confettiLayer.innerHTML = '';
+  stageEl.style.display = 'flex';
+  endScreen.classList.remove('visible');
+  wordEl.classList.remove('visible','exit');
+  wordEl.innerHTML = '';
+  stageEl.style.background = '#FAF5FF';
+  progressEl.style.width = '0';
+  hintEl.style.display = '';
+  hintEl.style.opacity = '1';
+  counterEl.style.display = '';
+}
+
+document.addEventListener('click', advance);
+document.addEventListener('keydown', e => {
+  if ([' ','ArrowRight','Enter','ArrowDown'].includes(e.key)) {
+    e.preventDefault();
+    advance();
+  }
+});
+</script>
+</body>
+</html>
